@@ -2,18 +2,12 @@ package org.example;
 
 import org.example.fileresolver.FileResolver;
 
-import java.io.IOException;
-
-/**
- * Hello world!
- *
- */
 public class App {
 
-    public static void main( String[] args ) throws IOException {
+    public static void main( String[] args ) {
         FileResolver fileResolver = new FileResolver();
         final String folderPath = "/myfolder";
 
-        fileResolver.getResource(folderPath);
+        fileResolver.copyResourcesToTmpDir(folderPath);
     }
 }

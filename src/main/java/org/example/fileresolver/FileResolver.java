@@ -13,12 +13,12 @@ import java.util.stream.Stream;
 public class FileResolver {
     private static final Logger LOGGER = Logger.getLogger( FileResolver.class.getName() );
 
-    public void getResource(String resource) throws NullPointerException {
+    public void copyResourcesToTmpDir(String resource) throws NullPointerException {
         final URL fileUrl = getClass().getResource(resource);
 
         if (fileUrl != null) {
             String filePath = fileUrl.getPath();
-            copyFilesToTmpDir(resource, filePath);
+            walkFilesToCopy(resource, filePath);
         }
     }
 
@@ -56,29 +56,22 @@ public class FileResolver {
         } catch (IOException e) {
             LOGGER.log(Level.WARNING,"Existing directory files could not be deleted.", e);
         }
-
-        /*try {
-            FileUtils.deleteDirectory(file);
-            LOGGER.log(Level.INFO, "Existing directory removed.");
-        } catch (IOException e) {
-            LOGGER.log(Level.WARNING,"Directory could not be deleted.", e);
-        }*/
     }
 
-    private void createDirectory(Path path) {
+    private void handleTargetDirectory(Path path) {
         if (path.toFile().isDirectory()) {
             emptyDirectory(path);
-        }
-
-        try {
-            Files.createDirectories(path);
-            LOGGER.log(Level.INFO, "Created directory: " + path);
-        } catch (IOException e) {
-            LOGGER.log(Level.WARNING,"Directory could not be created.", e);
+        } else {
+            try {
+                Files.createDirectories(path);
+                LOGGER.log(Level.INFO, "Created directory: " + path);
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING,"Directory could not be created.", e);
+            }
         }
     }
 
-    private void copyFilesToTmpDir(final String folderName, String sourceUrl) {
+    private void walkFilesToCopy(final String folderName, String sourceUrl) {
         final String tempPathTarget = getTempPath() + folderName;
 
         final Path targetPath = getPathFromString(tempPathTarget);
@@ -87,7 +80,7 @@ public class FileResolver {
         if (sourcePath == null || targetPath == null) {
             return;
         } else {
-            createDirectory(targetPath);
+            handleTargetDirectory(targetPath);
         }
 
         try (Stream<Path> walk = Files.walk(sourcePath)) {
