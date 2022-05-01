@@ -1,11 +1,11 @@
 package org.example.fileresolver;
 
+import org.apache.commons.io.FileUtils;
+
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
@@ -13,12 +13,12 @@ import java.util.stream.Stream;
 public class FileResolver {
     private static final Logger LOGGER = Logger.getLogger( FileResolver.class.getName() );
 
-    public void getResource(String resource) throws NullPointerException, IOException {
+    public void getResource(String resource) throws NullPointerException {
         final URL fileUrl = getClass().getResource(resource);
 
         if (fileUrl != null) {
             String filePath = fileUrl.getPath();
-            copyFilesToTmpDir(filePath);
+            copyFilesToTmpDir(resource, filePath);
         }
     }
 
@@ -47,19 +47,44 @@ public class FileResolver {
         return tempPath;
     }
 
-    private void createDirectory(Path path) throws IOException {
-        Files.createDirectories(path);
-        LOGGER.log(Level.INFO, "Created directory: " + path);
+    private void emptyDirectory(Path path) {
+        final File file = path.toFile();
+
+        try {
+            FileUtils.cleanDirectory(file);
+            LOGGER.log(Level.INFO, "Existing directory found. Cleaning it to enable file copying process.");
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING,"Existing directory files could not be deleted.", e);
+        }
+
+        /*try {
+            FileUtils.deleteDirectory(file);
+            LOGGER.log(Level.INFO, "Existing directory removed.");
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING,"Directory could not be deleted.", e);
+        }*/
     }
 
-    private void copyFilesToTmpDir(final String sourceUrl) throws IOException {
-        final String tempPathTarget = getTempPath() + sourceUrl;
-        System.out.println(tempPathTarget);
+    private void createDirectory(Path path) {
+        if (path.toFile().isDirectory()) {
+            emptyDirectory(path);
+        }
 
-        Path targetPath = getPathFromString(tempPathTarget);
-        Path sourcePath = getPathFromString(sourceUrl);
+        try {
+            Files.createDirectories(path);
+            LOGGER.log(Level.INFO, "Created directory: " + path);
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING,"Directory could not be created.", e);
+        }
+    }
 
-        if (sourcePath == null) {
+    private void copyFilesToTmpDir(final String folderName, String sourceUrl) {
+        final String tempPathTarget = getTempPath() + folderName;
+
+        final Path targetPath = getPathFromString(tempPathTarget);
+        final Path sourcePath = getPathFromString(sourceUrl);
+
+        if (sourcePath == null || targetPath == null) {
             return;
         } else {
             createDirectory(targetPath);
@@ -67,20 +92,19 @@ public class FileResolver {
 
         try (Stream<Path> walk = Files.walk(sourcePath)) {
             walk.forEach(source -> {
-                assert targetPath != null;
-                Path destination = Paths.get(targetPath.toString(), source.toString()
-                                .substring(sourceUrl.length()));
-                        try {
-                            LOGGER.log(Level.INFO, "Copying file: " + source);
-                            Files.copy(source, destination);
-                        } catch (IOException e) {
-                            LOGGER.log(Level.SEVERE, "Failed to copy file:", e);
-                        }
-                    }
-            );
+                final String filePath = source.toString().substring(sourceUrl.length());
+                Path destination = Paths.get(tempPathTarget, filePath);
+                LOGGER.log(Level.INFO, "Copying file: " + destination);
+
+                try {
+                    LOGGER.log(Level.INFO, "Copying file: " + source + " TO: " + destination);
+                    Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException e) {
+                    LOGGER.log(Level.SEVERE, "Failed to copy file:", e);
+                }
+            });
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-
 }
